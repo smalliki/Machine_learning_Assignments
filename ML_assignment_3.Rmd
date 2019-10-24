@@ -1,0 +1,53 @@
+---
+title: "smalliki_ML_3"
+author: "Santhosh reddy Mallikireddy"
+date: "24/10/2019"
+output: html_document
+---
+```{r}
+library(readr)
+library(caret)
+library(ISLR)
+library(e1071)
+library(pROC)
+FD <- read_csv("C:/Users/santhosh/Desktop/FlightDelays.csv")
+summary(FD)
+
+status<-FD[,c(1,2,4,8,10,13)]
+set.seed(123)
+status$DAY_WEEK<-as.factor(status$DAY_WEEK)
+status$CRS_DEP_TIME <- as.factor(round(status$CRS_DEP_TIME/100))
+status$`Flight Status`<-factor(status$`Flight Status`,levels = c("delayed","ontime"),labels=c(1,0))
+
+### Q1: Data partition ###
+Index_Train<-createDataPartition(status$CRS_DEP_TIME, p=0.6, list=FALSE)
+Train_Data <-status[Index_Train,]
+Validation_Data <-status[-Index_Train,]
+
+summary(Train_Data)
+
+### Q2: Naive Bayes classifier ###
+
+nb <-naiveBayes(Train_Data$`Flight Status` ~ .,data = Train_Data)
+nb
+
+### Q3: counts table and a proportion table ###
+table(Train_Data$`Flight Status`,Train_Data$DEST) #count of no. of flights delyaed or ontime
+
+
+prop.table(table(Train_Data$`Flight Status`,Train_Data$DEST),margin = 1) #proportion of flights delayed or ontime
+
+### Q4: confusion matrix and ROC for the validation data ###
+
+predection_val<-predict(nb,Validation_Data)
+
+confusionMatrix(predection_val,Validation_Data$`Flight Status`)
+
+Prediction_val2<-predict(nb,Validation_Data,type = "raw")
+
+roc(Validation_Data$`Flight Status`,Prediction_val2[,2])
+
+plot.roc(Validation_Data$`Flight Status`,Prediction_val2[,2])
+
+```
+
