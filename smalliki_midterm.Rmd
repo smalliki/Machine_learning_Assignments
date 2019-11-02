@@ -1,0 +1,180 @@
+---
+title: "K-means Clustering"
+author: "Santhosh reddy Mallikireddy"
+date: "31/10/2019"
+output: html_document
+---
+QUESTION:
+
+The dataset on American College and University Rankings contains information on 1302 American colleges and universities offering an undergraduate program. For each university, there are 17 measurements, including continuous measurements (such as tuition and grad- uation rate) and categorical measurements (such as location by state and whether it is a private or public school).
+Note that many records are missing some measurements. 
+
+1.	Remove all records with missing measurements from the dataset.
+
+2.	For all the continuous measurements, run K-Means clustering. Make sure to normalize the measurements. How many clusters seem reasonable for describing these data? What was your optimal K?
+
+3.	Compare the summary statistics for each cluster and describe each cluster in this context (e.g., “Universities with high tuition, low acceptance rate...”).
+
+4.	Use the categorical measurements that were not used in the analysis (State and Private/Public) to characterize the different clusters. Is there any relationship between the clusters and the categorical information?
+
+5.	What other external information can explain the contents of some or all of these clusters?
+
+                                ANSWER:
+                                
+## Importing Dataset and required libraries ##
+```{r}
+library(tidyverse)
+library(factoextra)
+library(ISLR)
+library(readr)
+Universities <- read.csv("BA-Fall_19/Machine Learning/practicum/Universities.csv")
+View(Universities)
+set.seed(123)
+summary(Universities)
+```
+
+Q 1: 
+
+```{r}
+##Removing all records with missing measurements from the dataset##
+Uni <- na.omit(Universities)#removes everything that has NA values from the dataset
+#View(Uni)
+```
+
+Q 2:
+## NORMALIZING AND K-Means Clustering ##
+We will cluster our data after scaling it.
+```{r}
+Uni_1 <- Uni[,c(-1,-2,-3)] #to remove Columns with categorical measurements 
+#View(Uni_1)
+# Scaling the data frame (z-score) 
+Uni1 <- scale(Uni_1)
+distance <- get_dist(Uni)
+fviz_dist(distance)
+```
+We use Elbow method and Average Silhouette Method to determine the best K value.
+```{r}
+fviz_nbclust(Uni1, kmeans, method = "wss") #Elbow method
+fviz_nbclust(Uni1, kmeans, method = "silhouette") #Average Silhouette Method
+```
+From above graphs we found that best value for k is 3.
+
+Let us now run the k-means algorithm to cluster the Universities. We will take value of k = 3 from above result.
+```{r}
+k3 <- kmeans(Uni1, centers = 3, nstart = 25) #k=3 and restarts = 25
+# to Visualize the output
+k3$centers
+k3$size #Number of Universities in each cluster
+fviz_cluster(k3, data = Uni1) #Cluster plot to Visualize the output 
+```
+
+From the cluster plot we can infer that bottom cluster represent Universities with Average Grade (Positive and Negative Values). Top left cluster represent Universities with Below Average Grade (Negative Values), while Top right cluster represent Universities with Above average Grade (Positive Values).
+
+Q 3:
+Combining clusters to Universities dataset to find summary statistics of each cluster.
+```{r}
+ds <- cbind(Uni,k3$cluster) #adding clusters to dataset
+ds <- as.data.frame(ds)
+ds$Public..1...Private..2. <- factor(Uni$Public..1...Private..2., levels = c("1","2"), labels = c("public", "private"))
+ds$`k3$cluster` <- factor(k3$cluster, levels = c("1","2","3"), labels = c("Grade 3","Grade 1","Grade 2"))
+View(ds)
+```
+#Statistics of Cluster 1
+```{r}
+C1 <- ds[ds$`k3$cluster` == "Grade 3",]
+summary(C1)
+```
+#there are 84 public and 191 private universities in this cluster
+#universities with less number of applications recieved and accepted.
+#Number of new students enrolled is less
+#Minimum number of students from top 10
+#Minimum number of students from top 25
+#Least number of fulltime Undergrad students
+#Minimum Out of state fee
+#Less number of rooms and boards
+#additonal fee and estimated book cost is less 
+```{r}
+C2 <- ds[ds$`k3$cluster` == "Grade 1",]
+summary(C2)
+```
+#there are 3 public and 147 private universities in this cluster
+#Universities with highest number of students from top 10 and top 20
+#In state tution and out state tution fee is high
+#Universities with more number of rooms and board
+#Universities with more number of faculty with phd
+#Higer graduation rate
+```{r}
+C3 <- ds[ds$`k3$cluster` == "Grade 2",]
+summary(C3)
+```
+#there are 41 public and 5 private universities in this cluster
+#Universities that recieved more number of applications
+#These has high application acceptancy rate
+#New students enrolled is high in these Universities
+#More number of Full time and Part time Undergraduate
+#Admission fee is high
+#Estimated book cost and personal expences is high
+#Student to faculty ratio is high in these Universities
+
+Q 4:
+Relationship between the clusters and the categorical information
+```{r}
+y <- cbind(Uni[,c(1,2,3)],k3$cluster)
+y <- as.data.frame(y)
+y$Public..1...Private..2. <- factor(Uni$Public..1...Private..2., levels = c("1","2"), labels = c("public", "private"))
+y$`k3$cluster` <- factor(k3$cluster, levels = c("1","2","3"), labels = c("Grade 3","Grade 1","Grade 2"))
+View(y)
+ggplot(y,aes(x=y$State,y=y$Public..1...Private..2., color= y$`k3$cluster`)) + geom_point()
+```
+
+
+
+#Above graph will provide us the relation of public and private universities in a state and in which cluster they belong to.
+```{r}
+C_1 <- y[y$`k3$cluster` == "Grade 3",]
+#View(C_1)
+summary(C_1)
+```
+
+Cluster 1 has highest number of Universities(275) that contains both Public (84) and Private (191) Universities
+```{r}
+C_2 <- y[y$`k3$cluster` == "Grade 1",]
+#View(C_2)
+summary(C_2)
+```
+Most of the Universities in Cluster 2 are private (147) and only 3 public Universities
+```{r}
+C_3 <- y[y$`k3$cluster` == "Grade 2",]
+#View(C_3)
+summary(C_3)
+```
+Cluster 3 has least number of Universities (46) in which most of them are public(41) and have only 5 private universities.
+
+Q 5:
+```{r}
+k3$withinss# It describes the distance between centroids and mean of all the points within a cluster
+k3$betweenss
+```
+These are the two Distance metrics that determine contents of cluster.
+Q 6:
+```{r}
+Km<-kmeans(Uni_1,centers = 3)
+m_c1<-mean(Km$centers[1,]) # Mean of Cluster 1
+m_c2<-mean(Km$centers[2,]) # Mean of cluster 2
+m_c3<-mean(Km$centers[3,]) # Mean of cluster 3
+U1<-Universities[Universities$College.Name =="Tufts University",]
+View(U1)
+U2<-apply(U1[,-c(1:3,10)],1,mean) # Mean of record
+mean(U2)
+dist(rbind(U2,m_c1)) # Euclideam distance betweewn  cluster 1 mean and Tufts university data
+dist(rbind(U2,m_c2))
+dist(rbind(U2,m_c3))
+U1$X..PT.undergrad<-1596.33 # From the above, Mean value which is near to cluster 1. Hence replacing the missing value with mean value
+uni2<-rbind(Uni,U1)
+View(uni2)
+uni2_z<-scale(uni2[,-c(1:3)])
+uni2_cluster<-kmeans(uni2_z,3)
+uni2<-cbind(uni2,uni2_cluster$cluster)
+uni2[472,] # From the model, this uniersity falls under Cluster 1("Grade 3")
+```
+
