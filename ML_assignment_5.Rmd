@@ -1,0 +1,182 @@
+---
+title: "machine learning"
+author: "Santhosh reddy Mallikireddy"
+date: "12/11/2019"
+output: html_document
+---
+```{r}
+library(ISLR)
+library(readr)
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra) # clustering visualization
+library(dendextend) # for comparing two dendrograms
+```
+
+```{r}
+cereals <- read_csv("Cereals (1).csv")
+#View(cereals)
+set.seed(123)
+summary(cereals)
+```
+
+```{r}
+cereals.norm <- cereals[,-c(1:3)]
+#cereals.norm <- cbind(cereals[,1:3],cereals.norm)
+cereals.norm <- na.omit(cereals.norm)
+cereals.norm <- scale(cereals.norm)
+C_main <- as.data.frame(cereals.norm)
+View(cereals.norm)
+summary(cereals.norm)
+```
+
+
+Q1:Apply hierarchical clustering to the data using Euclidean distance to the normalized measurements. Use Agnes to compare the clustering from  single linkage, complete linkage, average linkage, and Ward. Choose the best method.
+
+```{r}
+# Dissimilarity matrix
+d <- dist(cereals.norm, method = "euclidean")
+
+# Hierarchical clustering using Complete Linkage
+hc1 <- hclust(d, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.6, hang = -1)
+```
+
+```{r}
+# methods to assess
+m <- c( "average", "single", "complete", "ward")
+names(m) <- c( "average", "single", "complete", "ward")
+
+# function to compute coefficient
+ac <- function(x) {
+  agnes(cereals.norm, method = x)$ac
+}
+
+map_dbl(m, ac)
+```
+
+
+From the above result "ward" is the best method.
+```{r}
+hc2 <- agnes(cereals.norm, method = "ward")
+pltree(hc2, cex = 0.6, hang = -1, main = "Dendrogram of agnes")
+```
+
+Q2:How many clusters would you choose?
+
+```{r}
+d <- dist(cereals.norm, method = "euclidean")
+
+# Hierarchical clustering using Ward Linkage
+hc3 <- hclust(d, method = "ward.D2" )
+
+# Plot the obtained dendrogram
+plot(hc3, cex = 0.6, hang = -1)
+
+sub_grp <- cutree(hc3, k = 4)
+C2 <- as.data.frame(cbind(C_main,sub_grp))
+plot(hc3, cex = 0.6)
+rect.hclust(hc3, k = 4, border = 2:5)
+fviz_cluster(list(data = cereals.norm, cluster = sub_grp))
+```
+k=4 is cutting the longest path, so I choose k=4.
+
+
+
+Q3: Comment on the structure of the clusters and on their stability. Hint: To check stability,  partition the data and see how well clusters formed based on one part apply to the other part. To do this:
+-> Cluster partition A
+
+-> Use the cluster centroids from A to assign each record in partition B (each record is assigned to the cluster with the closest centroid).
+
+->Assess how consistent the cluster assignments are compared to the assignments based on all the data.
+
+```{r}
+library(caret)
+set.seed(123)
+C<-cereals
+C1<-na.omit(C) 
+
+
+#C_index<-createDataPartition(C1$calories,p=0.5,list=FALSE)
+train_data<-C1[1:50,]
+test_data<-C1[51:74,]
+train_data<-as.data.frame(scale(train_data[,-c(1:3)]))
+test_data<-as.data.frame(scale(test_data[,-c(1:3)]))
+
+tr <- c( "average", "single", "complete", "ward")
+names(tr) <- c( "average", "single", "complete", "ward")
+
+# function to compute coefficient
+ac <- function(x) {
+  agnes(train_data, method = x)$ac
+}
+
+map_dbl(tr, ac)
+
+tt <- c( "average", "single", "complete", "ward")
+names(tt) <- c( "average", "single", "complete", "ward")
+
+# function to compute coefficient
+ac <- function(x) {
+  agnes(test_data, method = x)$ac
+}
+
+map_dbl(tt, ac)
+
+hc_tr<- agnes(train_data,method = "ward")
+hc_tt<- agnes(test_data,method = "ward")
+
+
+pltree(hc_tr,cex=0.6,hang=-1,main="Dendrogram of agnes")
+rect.hclust(hc_tr, k = 4, border = 2:5)
+
+pltree(hc_tt,cex=0.6,hang=-1,main="Dendrogram of agnes")
+rect.hclust(hc_tt, k = 4, border = 2:5)
+
+hc_tr_cut <- cutree(hc_tr,k=4)
+hc_tt_cut <- cutree(hc_tt,k=4)
+
+hc_total <- as.data.frame(cbind(train_data,hc_tr_cut))
+hc_total
+
+tr_clust1 <- hc_total[hc_total$hc_tr_cut==1,]
+colMeans(tr_clust1)
+tr_clust2 <- hc_total[hc_total$hc_tr_cut==2,]
+colMeans(tr_clust2)
+tr_clust3 <- hc_total[hc_total$hc_tr_cut==3,]
+colMeans(tr_clust3)
+tr_clust4 <- hc_total[hc_total$hc_tr_cut==4,]
+colMeans(tr_clust4)
+
+hc_means1 <- rbind(colMeans(tr_clust1),colMeans(tr_clust2),colMeans(tr_clust3),colMeans(tr_clust4))
+hc_means1
+
+hc_means <- subset(hc_means1,select = -c(hc_tr_cut))
+hc_means
+
+HC <- data.frame(records=seq(1,nrow(test_data)),cluster_no=rep(0,nrow(test_data)))
+for (i in seq(1,nrow(test_data))) {
+  c1<- as.data.frame(rbind(hc_means, test_data[i,]))
+  e1<- as.matrix(get_dist(c1))
+  HC[i,2] <- which.min(e1[5,-5])
+}
+HC
+cbind(clust=HC$cluster_no, clst=C2[51:74,14])
+table(HC$cluster_no==C2[51:74,14])
+```
+From the result we can say that this model is not stable.
+
+
+Q4:The elementary public schools would like to choose a set of cereals to include in their daily cafeterias. Every day a different cereal is offered, but all cereals should support a healthy diet. For this goal, you are requested to find a cluster of “healthy cereals.” Should the data be normalized? If not, how should they be used in the cluster analysis?
+
+```{r}
+result<-cbind(C1,sub_grp)
+result[result$sub_grp==1,]
+result[result$sub_grp==2,]
+result[result$sub_grp==3,]
+result[result$sub_grp==4,]
+```
+#rating in cluster 1 is high so for "healthy cereals" we should choose cluster 1.
+#Normalization is used to eliminate redundant data and ensures that good quality clusters are generated which can improve the clustering algorithm. So we need to do normalization.
