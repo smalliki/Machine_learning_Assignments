@@ -1,0 +1,191 @@
+---
+title: "final_project"
+author: "Santhosh reddy Mallikireddy"
+date: "05/12/2019"
+output: html_document
+---
+
+```{r}
+library(caret)
+library(factoextra)
+library(hrbrthemes)
+library(GGally)
+library(viridis)
+```
+1)
+a : purchase behavior (including brand loyalty)
+variables we choose for purchase behavior are "No. of Brands","Brand Runs","Total Volume","No. of  Trans","Value","Trans / Brand Runs","Vol/Tran","Avg. Price","Others 999","max_Brand_ind"
+```{r}
+set.seed(123)
+library(readr)
+BathSoap <- read_csv("BathSoap.csv")
+#View(BathSoap)
+r1<-BathSoap[,23:30]
+BathSoap$max_Brand_ind<-as.numeric(apply(r1,1,max))
+#here we are considering the max value out of the 8 brands given.
+BS1<-BathSoap[,c(12:19,31,47)]
+#View(BS1)
+data1<-as.data.frame(scale(BS1)) # scaling the data
+# Elbow chart to estimate the optimal K
+fviz_nbclust(data1,kmeans,method = "silhouette")
+# Choosing the optimal K as 3 and forming 3 clusters
+
+model1<-kmeans(data1,3,nstart=50)
+# Visualizing the clusters
+fviz_cluster(model1,data1)
+
+result1<-as.data.frame(cbind(1:nrow(model1$centers),model1$centers))
+result1$V1<-as.factor(result1$V1)
+# Characteristics of the cluster
+result1
+
+model1$size
+
+# Parallel plot to visualize the cluster.
+ggparcoord(result1,
+           columns = 2:ncol(result1), groupColumn = 1, 
+           showPoints = TRUE, 
+           title = "Characterisitcs of the cluster",
+           alphaLines = 0.3 
+) 
+
+
+```
+Comment: As we can see cluster 2 and cluster 3 have similar characteristics for variables trans/brand runs(low) , Vol/trans(low) and avg price(high) and are less loyal to brands where as cluster 1 has trans/brand runs(high) , Vol/trans(high)and avg price(low) with high brand loyality.we can say that clusters with less avg value and more trans/brand runs are more loyal to specific brands.
+
+
+
+b) basis for purchase
+variables that are included in basis for purchase are "Pur Vol No Promo - %"  "Pur Vol Promo 6 %","Pur Vol Other Promo %","Pr Cat 1","Pr Cat 2","Pr Cat 3","Pr Cat 4","max_prop" 
+```{r}
+r2<-BathSoap[,36:46]
+BathSoap$max_prop_no<-as.numeric(apply(r2,1,which.max))
+BathSoap$max_prop<-as.numeric(apply(r2,1,max))
+#most people seemed to be responding to only few of the propositions, so we can the max value from all the propositons.
+BS2<-BathSoap[,c(20:22,32:35,49)]
+#View(BS2)
+data2<-as.data.frame(scale(BS2)) # scaling the data
+
+# Choosing the optimal K as 3 and forming 3 clusters
+model2<-kmeans(data2,3,nstart=50)
+
+# Visualizing the clusters
+fviz_cluster(model2,data2)
+
+
+result2<-as.data.frame(cbind(1:nrow(model2$centers),model2$centers))
+result2$V1<-as.factor(result2$V1)
+# Characteristics of the cluster
+result2
+
+model2$size
+
+
+# Parallel plot to visualize the cluster.
+ggparcoord(result2,
+           columns = 2:ncol(result2), groupColumn = 1, 
+           showPoints = TRUE, 
+           title = "Characterisitcs of the cluster",
+           alphaLines = 0.3 
+) 
+
+```
+Comment: as we observe clusters(2) with less no. of "Pur Vol No promo" has more number of "max_prop" and clusters(1 and 3) with high number of "Pur Vol Promo 6%" and "Pur Vol Other Promo %" has less number of "max_prop".
+
+
+
+c)both purchase behavior and basis of purchase 
+variables include are "No. of Brands","Brand Runs","Total Volume","No. of  Trans","Value","Trans / Brand Runs","Vol/Tran","Avg. Price","Others 999","max_Brand_ind","Pur Vol No Promo - %"  "Pur Vol Promo 6 %","Pur Vol Other Promo %","Pr Cat 1","Pr Cat 2","Pr Cat 3","Pr Cat 4","max_prop" 
+```{r}
+BS3<-BathSoap[,c(12:22,31:35,47,49)]
+#View(BS3)
+data3<-as.data.frame(scale(BS3)) # scaling the data
+
+# Choosing the optimal K as 3 and forming 3 clusters
+model3<-kmeans(data3,3,nstart=50)
+
+# Visualizing the clusters
+fviz_cluster(model3,data3)
+
+
+result3<-as.data.frame(cbind(1:nrow(model3$centers),model3$centers))
+result3$V1<-as.factor(result3$V1)
+# Characteristics of the cluster
+result3
+
+model3$size
+
+
+# Parallel plot to visualize the cluster.
+ggparcoord(result3,
+           columns = 2:10, groupColumn = 1, 
+           showPoints = TRUE, 
+           title = "Characterisitcs of the cluster",
+           alphaLines = 0.3 
+) 
+ggparcoord(result3,
+           columns = 11:19, groupColumn = 1, 
+           showPoints = TRUE, 
+           title = "Characterisitcs of the cluster",
+           alphaLines = 0.3 
+) 
+```
+Comment: Cluster 1 with low "AVg.price" and high "Pur Vol No Promo-%" has high max_brand and max_prop. clusters (2, 3) has high "Avg.price" and low "Pur Vol No Promo-%" and has less loyal to specific brands.
+
+
+Q2):choosing the best segmentation out of the three approaches:
+
+To compare these three approaches lets add demographic variables to all the three models and choose the best model.
+After comparing three models we can comment that the cluster characteristics of model 1 and model 2 are similar when compared to brand loyality and since model 2 is build with less variables then other two, we can say that model 2 is the best segmentation out of the three approaches
+
+```{r}
+#BEST MODEL
+R<-BathSoap[,23:30]
+BathSoap$Loyality<-as.numeric(apply(R,1,which.max))
+BS<-BathSoap[,c(2:11,20:22,31:35,47,49,50)]
+#View(BS)
+data<-as.data.frame(scale(BS)) # scaling the data
+
+# Choosing the optimal K as 3 and forming 3 clusters
+model<-kmeans(data,3,nstart=50)
+
+# Visualizing the clusters
+fviz_cluster(model,data)
+
+result<-as.data.frame(cbind(1:nrow(model$centers),model$centers))
+result$V1<-as.factor(result$V1)
+# Characteristics of the cluster
+result
+
+model$size
+
+# Parallel plot to visualize the cluster.
+ggparcoord(result,
+           columns = 2:11, groupColumn = 1, 
+           showPoints = TRUE, 
+           title = "Characterisitcs of the cluster",
+           alphaLines = 0.3 
+) 
+
+ggparcoord(result,
+           columns = 12:22, groupColumn = 1, 
+           showPoints = TRUE, 
+           title = "Characterisitcs of the cluster",
+           alphaLines = 0.3 
+) 
+```
+
+Q3)
+```{r}
+BSM<-BathSoap[,c(2:11,20:22,31:35,47,49,50)]
+BSM$clusters <- model$cluster
+max_price_cat <- as.factor(apply(BSM[,c(15:18)],1,which.max))
+ggplot(BSM) +
+  aes(x = clusters,fill= max_price_cat) +
+  geom_bar() +
+  scale_fill_hue() +
+  theme_minimal() +
+  facet_wrap(vars(c("Pur Vol No Promo - %","Pur Vol Promo 6 %","Pur Vol Other Promo %")))
+# If we see price category 4 in all clusters it is low compared to other irrespective of the promotions so no matter if we increase promotions in that we can not say that there will increase in transactions in that brand.price category 3 is also similar to 4. if we see price category 1 and 2 we can say that by increasing promotions in these category we can increase transactions and brand loyality.
+```
+
